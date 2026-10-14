@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#be1e2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="高血圧ナビ">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="favicon.png">
+<title>二次性高血圧 診断チャート</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: top-down flow (全例 → 赤旗 → 原因別レーン), each lane is a vertical chain 所見→スクリーニング→判定→確定→診断. */
+:root{
+  --bg:#f3f4f6; --panel:#fff; --line:#d3d8e0; --fg:#171c24; --muted:#5e6978;
+  --accent:#1f4e8c; --accent-soft:#e3ebf7;
+  --pa:#b45309; --pa-soft:#fff1dc; --rv:#9b1c2e; --rv-soft:#fbe4e7; --rp:#6d28d9; --rp-soft:#efe7fb;
+  --sas:#0e7490; --sas-soft:#dff4f8; --ph:#be185d; --ph-soft:#fbe3ee; --cs:#4d7c0f; --cs-soft:#ebf4dc; --ot:#475569; --ot-soft:#e8ecf1;
+  --flag:#b91c1c; --flag-soft:#fde8e8;
+  --sans:"IBM Plex Sans JP","Hiragino Sans","Noto Sans JP",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#12161c; --panel:#1a2029; --line:#2e3745; --fg:#e6eaf0; --muted:#97a3b3; --accent:#7fb0ea; --accent-soft:#1b2a3d;
+  --pa:#f5b14d; --pa-soft:#3a2a12; --rv:#f08a95; --rv-soft:#3b1f24; --rp:#c4a6f7; --rp-soft:#2a1f3f;
+  --sas:#67d3ea; --sas-soft:#12303a; --ph:#f48fb8; --ph-soft:#3c1f2c; --cs:#a3d65c; --cs-soft:#25331a; --ot:#aab6c5; --ot-soft:#262d37;
+  --flag:#f87171; --flag-soft:#3b1d1d; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#12161c; --panel:#1a2029; --line:#2e3745; --fg:#e6eaf0; --muted:#97a3b3; --accent:#7fb0ea; --accent-soft:#1b2a3d;
+  --pa:#f5b14d; --pa-soft:#3a2a12; --rv:#f08a95; --rv-soft:#3b1f24; --rp:#c4a6f7; --rp-soft:#2a1f3f;
+  --sas:#67d3ea; --sas-soft:#12303a; --ph:#f48fb8; --ph-soft:#3c1f2c; --cs:#a3d65c; --cs-soft:#25331a; --ot:#aab6c5; --ot-soft:#262d37;
+  --flag:#f87171; --flag-soft:#3b1d1d; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0;padding-block:calc(18px + env(safe-area-inset-top,0px)) calc(48px + env(safe-area-inset-bottom,0px));padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:22px;font-weight:700;margin:0 0 4px;text-wrap:balance}
+h2{font-size:15px;font-weight:700;margin:0}
+p{margin:0}.sub{color:var(--muted);font-size:13px}
+.stage{display:flex;flex-direction:column;align-items:stretch;gap:0}
+.node{background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:12px 14px}
+.node.head{border-color:var(--accent);background:var(--accent-soft)}
+.node.flag{border-color:var(--flag);background:var(--flag-soft)}
+.step{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--accent);margin-bottom:4px}
+.flag .step{color:var(--flag)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 18px;margin-top:8px}
+.cols ul,.node ul{margin:4px 0 0;padding-left:18px}
+.node li{margin:2px 0}
+.conn{display:flex;justify-content:center;align-items:center;height:30px;position:relative;color:var(--muted);font-size:12px}
+.conn::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:2px solid var(--line)}
+.conn::after{content:"";position:absolute;left:50%;bottom:0;transform:translateX(-50%);border:6px solid transparent;border-top:8px solid var(--line);border-bottom:0}
+.conn span{position:relative;background:var(--bg);padding:0 8px;z-index:1}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:700px){.split{grid-template-columns:1fr}}
+.node.no{border-style:dashed}
+/* lanes */
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-top:0}
+.lane{border:1.5px solid var(--c);border-radius:12px;background:var(--panel);overflow:hidden;display:flex;flex-direction:column}
+.lane .title{background:var(--cs-soft);padding:10px 12px;font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.lane .title small{font-weight:500;color:var(--muted);font-size:11.5px}
+.lane .body{padding:10px 12px;display:flex;flex-direction:column;gap:0}
+.box{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px}
+.box .k{font-size:11px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;font-family:var(--mono);margin-bottom:2px}
+.box.test{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,var(--panel))}
+.box.dx{border-color:var(--c);background:var(--c);color:#fff;font-weight:600}
+.box.dx .k{color:rgba(255,255,255,.8)}
+.v{display:flex;justify-content:center;height:18px;position:relative}
+.v::before{content:"";position:absolute;top:0;bottom:0;border-left:2px solid var(--c)}
+.v::after{content:"";position:absolute;bottom:0;transform:translateX(-50%);left:50%;border:5px solid transparent;border-top:6px solid var(--c);border-bottom:0}
+.v.lbl{height:22px}.v.lbl span{position:relative;z-index:1;background:var(--panel);font-size:11px;color:var(--muted);padding:0 6px;align-self:center}
+.cut{font-family:var(--mono);font-size:12px}
+.pa{--c:var(--pa)} .rv{--c:var(--rv)} .rp{--c:var(--rp)} .sas{--c:var(--sas)} .ph{--c:var(--ph)} .cs{--c:var(--cs)} .ot{--c:var(--ot);grid-column:1/-1}
+.lane .title{background:color-mix(in srgb,var(--c) 14%,var(--panel));color:var(--c)}
+.fork{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fork .box{font-size:12.5px}
+.note{font-size:12.5px;color:var(--muted);margin-top:6px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--bg);font-weight:600}
+.tbl-wrap{overflow-x:auto}
+.src{font-size:12px;color:var(--muted);margin-top:16px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h1>二次性高血圧 スクリーニングと診断の流れ</h1><a href="index.html" style="color:var(--accent);font-size:14px;white-space:nowrap">← 予測ナビに戻る</a></div>
+<p class="sub" style="margin-bottom:14px">日本高血圧学会 JSH 2019／2025、日本内分泌学会 原発性アルドステロン症診療ガイドライン 2021 に基づく。上から順にたどり、該当する所見のレーンに進む。</p>
+
+<div class="stage">
+  <div class="node head">
+    <span class="step">STEP 0 ／ 全高血圧患者・初診時</span>
+    <h2>基本検査と問診</h2>
+    <div class="cols">
+      <div><b>採血・検尿</b><ul><li>血算、Na・K・Cl、Cr／eGFR、尿酸</li><li>血糖・HbA1c、脂質</li><li><b>血漿アルドステロン濃度（PAC）＋血漿レニン活性（PRA）または活性型レニン濃度（ARC）</b> ← 全例で推奨</li><li>尿検査（蛋白・潜血・沈渣）</li></ul></div>
+      <div><b>生理・画像</b><ul><li>心電図</li><li>家庭血圧（早朝・就寝前）</li><li>可能なら腎エコー</li></ul></div>
+      <div><b>問診</b><ul><li>発症年齢、家族歴</li><li>薬剤・サプリ（NSAIDs、ピル、甘草、ステロイド、ESA、VEGF 阻害薬、交感神経刺激薬）</li><li>いびき・眠気、発作症状</li></ul></div>
+    </div>
+  </div>
+
+  <div class="conn"><span>結果と所見を確認</span></div>
+
+  <div class="node flag">
+    <span class="step">STEP 1 ／ 二次性を疑う所見（赤旗）</span>
+    <div class="cols">
+      <div><ul><li>40 歳未満の発症（特に 30 歳未満）</li><li>中年以降の急な発症・急な悪化</li><li>重症高血圧（≥180/110）</li><li>治療抵抗性（3 剤以上で未達）</li></ul></div>
+      <div><ul><li>低 K 血症（利尿薬なしで &lt;3.5、利尿薬ありで &lt;3.0）</li><li>腎機能障害・蛋白尿・血尿、腎サイズ左右差</li><li>RAS 阻害薬開始後の急な Cr 上昇</li><li>副腎偶発腫瘍</li></ul></div>
+      <div><ul><li>発作性の血圧上昇・動悸・頭痛・発汗</li><li>いびき・日中の眠気・夜間高血圧</li><li>血圧の割に強い臓器障害</li><li>クッシング様体型、上下肢血圧差</li></ul></div>
+    </div>
+  </div>
+
+  <div class="split" style="margin-top:0">
+    <div>
+      <div class="conn"><span>赤旗なし</span></div>
+      <div class="node no"><b>本態性高血圧として治療開始</b><p class="note">アルドステロン／レニン比（ARR）のみは確認。治療抵抗性・低 K・新たな所見が出たら STEP 1 に戻って再評価。</p></div>
+    </div>
+    <div>
+      <div class="conn"><span>赤旗あり → 所見に対応するレーンへ</span></div>
+      <div class="node" style="border-color:var(--accent)"><b>原因別スクリーニング</b><p class="note">複数の所見があれば複数レーンを並行。副腎偶発腫瘍は PA・褐色細胞腫・クッシングの 3 つを同時に。</p></div>
+    </div>
+  </div>
+
+  <div class="conn"><span></span></div>
+
+  <div class="lanes">
+
+    <div class="lane pa">
+      <div class="title">原発性アルドステロン症<small>最多（高血圧の 5〜10%）</small></div>
+      <div class="body">
+        <div class="box"><div class="k">所見</div>低 K、副腎腫瘍、治療抵抗性、夜間多尿。<b>K 正常例が半数</b></div>
+        <div class="v"></div>
+        <div class="box test"><div class="k">スクリーニング</div>血漿アルドステロン濃度（PAC、CLEIA 法）と血漿レニン活性（PRA）または活性型レニン濃度（ARC）を測定 → <b>アルドステロン／レニン比（ARR）</b><br><span class="cut">随時・座位で可／低 K は先に補正</span></div>
+        <div class="v lbl"><span>判定</span></div>
+        <div class="fork">
+          <div class="box"><b>陽性</b><br><span class="cut">レニン活性で：ARR ≥200 かつ アルドステロン ≥60</span><br><span class="cut">レニン濃度で：アルドステロン／ARC ≥40</span></div>
+          <div class="box"><b>境界</b><br><span class="cut">レニン活性で：ARR 100〜200 かつ アルドステロン ≥60</span><br><span class="cut">レニン濃度で：アルドステロン／ARC 20〜40 かつ アルドステロン ≥60</span><br>→ 薬剤調整して再検</div>
+        </div>
+        <div class="v"></div>
+        <div class="box test"><div class="k">機能確認試験（1 つ陽性で確定）</div>カプトプリル負荷／生食負荷／フロセミド立位。<span class="cut">アルドステロン ≥1,000 pg/mL ＋低 K なら省略可</span></div>
+        <div class="v lbl"><span>手術希望あり</span></div>
+        <div class="box test"><div class="k">局在診断</div>副腎 CT → <b>副腎静脈サンプリング（AVS）</b></div>
+        <div class="v"></div>
+        <div class="fork">
+          <div class="box dx"><div class="k">片側性</div>腹腔鏡下副腎摘除</div>
+          <div class="box dx"><div class="k">両側性／手術希望なし</div>MR 拮抗薬（CT・AVS 省略可）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lane rv">
+      <div class="title">腎血管性高血圧<small>動脈硬化性／線維筋性異形成</small></div>
+      <div class="body">
+        <div class="box"><div class="k">所見</div>RAS 阻害薬で Cr 急上昇、腹部血管雑音、腎サイズ差 ≥1.5 cm、flash 肺水腫、若年女性（FMD）、全身動脈硬化</div>
+        <div class="v"></div>
+        <div class="box test"><div class="k">スクリーニング</div><b>腎動脈エコー</b><br><span class="cut">PSV ≥180〜200 cm/s、RAR ≥3.5、腎内 RI 左右差</span></div>
+        <div class="v lbl"><span>疑いあり／エコー不良</span></div>
+        <div class="box test"><div class="k">確定</div>CTA（eGFR ≥30）または MRA → 必要なら血管造影（圧較差）</div>
+        <div class="v"></div>
+        <div class="box dx"><div class="k">治療</div>FMD：PTA／動脈硬化性：薬物治療が基本、難治例・腎機能悪化・肺水腫で血行再建</div>
+      </div>
+    </div>
+
+    <div class="lane rp">
+      <div class="title">腎実質性高血圧<small>二次性で 2 番目に多い</small></div>
+      <div class="body">
+        <div class="box"><div class="k">所見</div>蛋白尿・血尿、eGFR 低下、糖尿病・膠原病・腎炎の既往、多発性嚢胞腎の家族歴</div>
+        <div class="v"></div>
+        <div class="box test"><div class="k">スクリーニング</div>尿検査・沈渣、尿蛋白／Cr 比、eGFR、<b>腎エコー</b>（サイズ・嚢胞・水腎）</div>
+        <div class="v lbl"><span>異常あり</span></div>
+        <div class="box test"><div class="k">確定</div>腎炎マーカー（免疫・補体）、必要なら腎生検。腎臓内科へ</div>
+        <div class="v"></div>
+        <div class="box dx"><div class="k">治療</div>原疾患治療＋RAS 阻害薬、減塩、目標 &lt;130/80</div>
+      </div>
+    </div>
+
+    <div class="lane sas">
+      <div class="title">睡眠時無呼吸症候群<small>治療抵抗性の最多原因</small></div>
+      <div class="body">
+        <div class="box"><div class="k">所見</div>いびき、肥満、日中の眠気、早朝・夜間高血圧（non-dipper）、治療抵抗性、心房細動</div>
+        <div class="v"></div>
+        <div class="box test"><div class="k">スクリーニング</div>問診（STOP-Bang、ESS）→ <b>簡易検査（在宅）</b><br><span class="cut">AHI ≥5 で陽性</span></div>
+        <div class="v lbl"><span>AHI ≥5〜</span></div>
+        <div class="box test"><div class="k">確定</div><b>PSG</b>（終夜睡眠ポリグラフ）<br><span class="cut">CPAP 保険適用：簡易 AHI ≥40 または PSG AHI ≥20</span></div>
+        <div class="v"></div>
+        <div class="box dx"><div class="k">治療</div>CPAP、減量、側臥位、口腔内装置</div>
+      </div>
+    </div>
+
+    <div class="lane ph">
+      <div class="title">褐色細胞腫・パラガングリオーマ<small>まれだが見逃し厳禁</small></div>
+      <div class="body">
+        <div class="box"><div class="k">所見</div>発作性・動揺性高血圧、頭痛・動悸・発汗の三徴、高血糖、起立性低血圧、副腎腫瘍、MEN2・VHL 家族歴</div>
+        <div class="v"></div>
+        <div class="box test"><div class="k">スクリーニング</div><b>血漿遊離メタネフリン分画</b>（保険適用）または 24 時間尿メタネフリン分画<br><span class="cut">正常上限の 3 倍以上で強く疑う</span></div>
+        <div class="v lbl"><span>陽性</span></div>
+        <div class="box test"><div class="k">局在</div>CT／MRI → <sup>123</sup>I-MIBG シンチ、必要なら PET</div>
+        <div class="v"></div>
+        <div class="box dx"><div class="k">治療</div>α遮断薬で 2 週間以上前処置 → 手術（β遮断薬は α の後）</div>
+      </div>
+    </div>
+
+    <div class="lane cs">
+      <div class="title">クッシング症候群<small>サブクリニカルも含む</small></div>
+      <div class="body">
+        <div class="box"><div class="k">所見</div>中心性肥満、満月様顔貌、皮膚線条、近位筋力低下、高血糖、低 K、骨粗鬆症、副腎腫瘍</div>
+        <div class="v"></div>
+        <div class="box test"><div class="k">スクリーニング</div><b>1 mg デキサメタゾン抑制試験</b>（翌朝コルチゾール ≥5 µg/dL）、深夜唾液コルチゾール、24 時間尿中遊離コルチゾール</div>
+        <div class="v lbl"><span>抑制不良</span></div>
+        <div class="box test"><div class="k">確定・鑑別</div>ACTH 測定 → ACTH 低値：副腎 CT／ACTH 正常〜高値：下垂体 MRI、CRH 試験、必要なら下錐体静脈洞サンプリング</div>
+        <div class="v"></div>
+        <div class="box dx"><div class="k">治療</div>原因腫瘍の摘出。内分泌内科へ</div>
+      </div>
+    </div>
+
+    <div class="lane ot">
+      <div class="title">その他<small>問診と診察で拾う</small></div>
+      <div class="body">
+        <div class="tbl-wrap"><table>
+          <tr><th>原因</th><th>手がかり</th><th>検査</th></tr>
+          <tr><td>薬剤・サプリ</td><td>NSAIDs、経口避妊薬、甘草（漢方）、ステロイド、シクロスポリン、ESA、VEGF 阻害薬、交感神経刺激薬</td><td>中止・変更後に再評価</td></tr>
+          <tr><td>甲状腺機能異常</td><td>動悸・体重減少／むくみ・徐脈</td><td>TSH、FT4</td></tr>
+          <tr><td>副甲状腺機能亢進症</td><td>高 Ca、尿路結石</td><td>Ca、P、intact PTH</td></tr>
+          <tr><td>大動脈縮窄症</td><td>若年、上下肢血圧差、大腿動脈拍動減弱</td><td>四肢血圧、心エコー、CT／MRA</td></tr>
+          <tr><td>先端巨大症</td><td>手足・顔貌の変化、発汗</td><td>IGF-1、GH</td></tr>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="node" style="margin-top:18px">
+  <h2 style="margin-bottom:8px">原発性アルドステロン症スクリーニング前の降圧薬調整</h2>
+  <p class="note" style="margin:0 0 8px">用語：血漿アルドステロン濃度（PAC、pg/mL）／血漿レニン活性（PRA、ng/mL/時）／活性型レニン濃度（ARC、pg/mL。血漿レニン濃度 PRC と同義）／アルドステロン／レニン比（ARR）＝ PAC ÷ PRA または PAC ÷ ARC。</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>薬剤</th><th>アルドステロン／レニン比（ARR）への影響</th><th>対応</th></tr>
+    <tr><td>MR 拮抗薬（スピロノラクトン、エプレレノン、エサキセレノン）</td><td>レニン↑ → 偽陰性</td><td><b>4〜6 週間休薬</b>が原則</td></tr>
+    <tr><td>利尿薬、ARB、ACE 阻害薬、直接レニン阻害薬</td><td>レニン↑ → 偽陰性</td><td>可能なら 2 週間以上休薬。継続下で「レニン抑制＋アルドステロン／レニン比 高値」なら陽性と判断可</td></tr>
+    <tr><td>β遮断薬、中枢性交感神経抑制薬</td><td>レニン↓ → 偽陽性</td><td>可能なら休薬</td></tr>
+    <tr><td>Ca 拮抗薬（非ジヒドロピリジン系以外）、α遮断薬</td><td>影響小</td><td><b>切り替え先として使用</b></td></tr>
+  </table></div>
+  <p class="note">血圧管理と低 K 補正が最優先。休薬できない場合は薬剤継続下で測定し、結果の解釈に反映する。</p>
+</div>
+
+<p class="src">出典：日本高血圧学会 高血圧治療ガイドライン 2019 表 13-1／高血圧管理・治療ガイドライン 2025、日本内分泌学会 原発性アルドステロン症診療ガイドライン 2021（アルドステロン濃度は CLEIA 法 pg/mL 基準）。本チャートは診療の補助資料であり、個別の判断は原文と臨床情報に基づいてください。</p>
+</div>
+<script>
+if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {})); }
+</script>
+</body>
+</html>

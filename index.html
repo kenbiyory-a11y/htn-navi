@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#be1e2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="高血圧ナビ">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="favicon.png">
+<title>二次性高血圧ナビ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: inputs (所見 → 採血 → 尿 → 薬剤) on the left, ranked suspicion cards on the right (stacked on phone). */
+:root{
+  --bg:#f3f4f6; --panel:#fff; --line:#d3d8e0; --fg:#171c24; --muted:#5e6978;
+  --accent:#1f4e8c; --accent-soft:#e3ebf7;
+  --hi:#b91c1c; --hi-soft:#fde8e8; --md:#b45309; --md-soft:#fff1dc; --lo:#1d7a4a; --lo-soft:#dff3e7; --na:#64748b; --na-soft:#eef1f5;
+  --sans:"IBM Plex Sans JP","Hiragino Sans","Noto Sans JP",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#12161c; --panel:#1a2029; --line:#2e3745; --fg:#e6eaf0; --muted:#97a3b3; --accent:#7fb0ea; --accent-soft:#1b2a3d;
+  --hi:#f87171; --hi-soft:#3b1d1d; --md:#f5b14d; --md-soft:#3a2a12; --lo:#5fcf8f; --lo-soft:#173326; --na:#aab6c5; --na-soft:#262d37; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#12161c; --panel:#1a2029; --line:#2e3745; --fg:#e6eaf0; --muted:#97a3b3; --accent:#7fb0ea; --accent-soft:#1b2a3d;
+  --hi:#f87171; --hi-soft:#3b1d1d; --md:#f5b14d; --md-soft:#3a2a12; --lo:#5fcf8f; --lo-soft:#173326; --na:#aab6c5; --na-soft:#262d37; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.55;margin:0;padding-block:calc(18px + env(safe-area-inset-top,0px)) calc(48px + env(safe-area-inset-bottom,0px));padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1140px;margin:0 auto}
+h1{font-size:21px;font-weight:700;margin:0;text-wrap:balance}
+h2{font-size:12.5px;font-weight:600;margin:0;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+p{margin:0}.sub{color:var(--muted);font-size:13px}
+header{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:8px 14px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+.tabs{display:flex;gap:6px;border-bottom:2px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tab{border:0;border-radius:8px 8px 0 0;background:transparent;padding:10px 16px;font-weight:600;color:var(--muted);margin-bottom:-2px;border-bottom:2px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-soft)}
+.view[hidden]{display:none!important}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:18px;align-items:start}
+/* treatment view */
+.tx{display:flex;flex-direction:column;gap:14px}
+.grp{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.gcard{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel)}
+.gcard .gk{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em}
+.gcard .gn{font-weight:700;font-size:15px;margin:2px 0 4px}
+.gcard p{font-size:13px;color:var(--muted)}
+.gcard.g1{border-color:var(--accent)} .gcard.g1 .gk{color:var(--accent)}
+.gcard.g2{border-color:var(--md)} .gcard.g2 .gk{color:var(--md)}
+.gcard.g3{border-color:var(--na)} .gcard.g3 .gk{color:var(--na)}
+.steps{display:flex;flex-direction:column;gap:0}
+.stepbox{border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.stepbox .st{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:600;letter-spacing:.06em}
+.stepbox .sn{font-weight:700;font-size:16px;margin:2px 0 6px}
+.stepbox ul{margin:4px 0 0;padding-left:18px;font-size:13.5px}
+.stepbox li{margin:3px 0}
+.stepbox.r{border-color:var(--hi);background:var(--hi-soft)} .stepbox.r .st{color:var(--hi)}
+.arrow{display:flex;justify-content:center;align-items:center;height:26px;position:relative;font-size:12px;color:var(--muted)}
+.arrow::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:2px solid var(--line)}
+.arrow::after{content:"";position:absolute;left:50%;bottom:0;transform:translateX(-50%);border:6px solid transparent;border-top:8px solid var(--line);border-bottom:0}
+.arrow span{position:relative;background:var(--bg);padding:0 8px;z-index:1}
+table.tx-t{border-collapse:collapse;width:100%;font-size:13px}
+.tx-t th,.tx-t td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.tx-t th{background:var(--bg);font-weight:600}
+.tbl-wrap{overflow-x:auto}
+.combo{display:inline-block;padding:2px 8px;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:13px;margin:2px 4px 2px 0}
+.combo.ng{background:var(--hi-soft);color:var(--hi)}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.panel-head{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.stepno{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:600}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px 12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12.5px;color:var(--muted)}
+input[type=number],select{font:inherit;font-size:16px;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font-variant-numeric:tabular-nums}
+input[type=number]{font-family:var(--mono)}
+.unit{font-size:11px;font-family:var(--mono);color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 11px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer;user-select:none;font-size:13.5px;min-height:40px}
+.chip input{position:absolute;opacity:0;width:0;height:0}
+.chip .box{width:18px;height:18px;border:2px solid var(--muted);border-radius:5px;flex:none;display:grid;place-items:center}
+.chip .box::after{content:"";width:10px;height:10px;border-radius:2px;background:transparent}
+.chip:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.chip:has(input:checked) .box{border-color:var(--accent)}
+.chip:has(input:checked) .box::after{background:var(--accent)}
+.chip:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.chip small{color:var(--muted);font-size:11px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:7px 12px;background:transparent;font-size:13.5px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.sub-label{font-size:12.5px;color:var(--muted);margin:10px 0 6px}
+.rail{position:sticky;top:env(safe-area-inset-top,0px);display:flex;flex-direction:column;gap:12px}
+@media (max-width:900px){.rail{position:static}}
+.cards{display:flex;flex-direction:column;gap:10px}
+.card{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel)}
+.card.hi{border-color:var(--hi);background:var(--hi-soft)} .card.md{border-color:var(--md);background:var(--md-soft)} .card.lo{border-color:var(--lo)} .card.na{opacity:.75}
+.card .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card .name{font-weight:700;font-size:15px}
+.pill{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.pill.hi{background:var(--hi);color:#fff} .pill.md{background:var(--md);color:#fff} .pill.lo{background:var(--lo-soft);color:var(--lo)} .pill.na{background:var(--na-soft);color:var(--na)}
+.card ul{margin:6px 0 0;padding-left:18px;font-size:13px}
+.card li{margin:2px 0}
+.card .next{margin-top:6px;font-size:13px;padding:6px 9px;border-radius:6px;background:var(--panel);border:1px dashed var(--line)}
+.card .next b{color:var(--accent)}
+.summary{font-size:13.5px;line-height:1.6}
+.kv{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:13px;font-variant-numeric:tabular-nums}
+.kv dt{color:var(--muted)}.kv dd{margin:0;font-family:var(--mono);text-align:right}
+textarea{font:inherit;font-family:var(--mono);font-size:12px;line-height:1.5;width:100%;margin-top:8px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);resize:vertical}
+details summary{cursor:pointer;color:var(--muted);font-size:13px}
+.note{font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <div><h1>二次性高血圧ナビ — 所見と採血結果から疑うべき原因を予測</h1><p class="sub">JSH 2019／2025、日本内分泌学会 原発性アルドステロン症ガイドライン 2021 の基準に基づく判定。随時採血・随時尿の結果を入力すると、原因ごとの疑いの強さと次の検査を表示します。</p></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="btnClear" type="button">全消去</button></div>
+</header>
+
+<div class="tabs" role="tablist">
+  <button class="tab" role="tab" id="tabNavi" aria-selected="true" aria-controls="viewNavi">原因予測</button>
+  <button class="tab" role="tab" id="tabTx" aria-selected="false" aria-controls="viewTx">治療薬を開く</button>
+  <a class="tab" href="chart.html" id="tabChart" style="text-decoration:none;display:inline-flex;align-items:center">フローチャート</a>
+</div>
+
+<div class="view" id="viewNavi">
+<div class="grid">
+<div class="col">
+
+  <section class="panel">
+    <div class="panel-head"><span class="stepno">STEP 1</span><h2>患者背景・血圧</h2></div>
+    <div class="fields">
+      <div class="field"><label for="age">年齢</label><input id="age" type="number" inputmode="numeric" placeholder="52"></div>
+      <div class="field"><label>性別</label><div class="seg" role="group"><button type="button" id="sexF" aria-pressed="false">女性</button><button type="button" id="sexM" aria-pressed="false">男性</button></div></div>
+      <div class="field"><label for="sbp">収縮期血圧 <span class="unit">mmHg</span></label><input id="sbp" type="number" inputmode="numeric" placeholder="162"></div>
+      <div class="field"><label for="dbp">拡張期血圧 <span class="unit">mmHg</span></label><input id="dbp" type="number" inputmode="numeric" placeholder="98"></div>
+      <div class="field"><label for="ndrug">降圧薬の数</label><input id="ndrug" type="number" inputmode="numeric" min="0" placeholder="2"></div>
+      <div class="field"><label for="bmi">BMI</label><input id="bmi" type="number" step="0.1" inputmode="decimal" placeholder="27.5"></div>
+      <div class="field"><label for="onset">発症年齢</label><input id="onset" type="number" inputmode="numeric" placeholder="35"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><span class="stepno">STEP 2</span><h2>所見・既往（該当をタップ）</h2></div>
+    <p class="sub-label">病歴・症状</p>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" id="rapid"><span class="box"></span>急な発症・急な悪化</label>
+      <label class="chip"><input type="checkbox" id="resist"><span class="box"></span>治療抵抗性<small>3 剤以上で未達</small></label>
+      <label class="chip"><input type="checkbox" id="parox"><span class="box"></span>発作性の血圧上昇</label>
+      <label class="chip"><input type="checkbox" id="triad"><span class="box"></span>頭痛・動悸・発汗</label>
+      <label class="chip"><input type="checkbox" id="snore"><span class="box"></span>いびき・無呼吸の指摘</label>
+      <label class="chip"><input type="checkbox" id="sleepy"><span class="box"></span>日中の眠気</label>
+      <label class="chip"><input type="checkbox" id="night"><span class="box"></span>夜間・早朝高血圧<small>non-dipper</small></label>
+      <label class="chip"><input type="checkbox" id="edema"><span class="box"></span>flash 肺水腫の既往</label>
+    </div>
+    <p class="sub-label">診察・画像</p>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" id="bruit"><span class="box"></span>腹部血管雑音</label>
+      <label class="chip"><input type="checkbox" id="kidneyasym"><span class="box"></span>腎サイズ左右差 ≥1.5 cm</label>
+      <label class="chip"><input type="checkbox" id="incid"><span class="box"></span>副腎偶発腫瘍</label>
+      <label class="chip"><input type="checkbox" id="cushing"><span class="box"></span>中心性肥満・満月様顔貌・皮膚線条</label>
+      <label class="chip"><input type="checkbox" id="limbdiff"><span class="box"></span>上下肢血圧差・大腿動脈拍動減弱</label>
+      <label class="chip"><input type="checkbox" id="athero"><span class="box"></span>全身の動脈硬化<small>冠動脈・頸動脈・PAD</small></label>
+      <label class="chip"><input type="checkbox" id="neck"><span class="box"></span>頸部周囲 ≥40 cm</label>
+    </div>
+    <p class="sub-label">薬剤・既往</p>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" id="rascr"><span class="box"></span>RAS 阻害薬で Cr が急上昇</label>
+      <label class="chip"><input type="checkbox" id="drugs"><span class="box"></span>血圧を上げる薬・サプリ<small>NSAIDs・ピル・甘草・ステロイド・ESA・VEGF 阻害薬・交感神経刺激薬</small></label>
+      <label class="chip"><input type="checkbox" id="dm"><span class="box"></span>糖尿病</label>
+      <label class="chip"><input type="checkbox" id="kidneydz"><span class="box"></span>腎炎・膠原病・嚢胞腎の既往／家族歴</label>
+      <label class="chip"><input type="checkbox" id="famendo"><span class="box"></span>MEN2・VHL など家族歴</label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><span class="stepno">STEP 3</span><h2>随時採血</h2></div>
+    <div class="fields">
+      <div class="field"><label for="k">K <span class="unit">mEq/L</span></label><input id="k" type="number" step="0.1" inputmode="decimal" placeholder="3.4"></div>
+      <div class="field"><label for="egfr">eGFR <span class="unit">mL/min/1.73m²</span></label><input id="egfr" type="number" inputmode="decimal" placeholder="72"></div>
+      <div class="field"><label for="ca">Ca（補正）<span class="unit">mg/dL</span></label><input id="ca" type="number" step="0.1" inputmode="decimal" placeholder="9.4"></div>
+      <div class="field"><label for="glu">血糖 <span class="unit">mg/dL</span></label><input id="glu" type="number" inputmode="decimal" placeholder="105"></div>
+      <div class="field"><label for="hba1c">HbA1c <span class="unit">%</span></label><input id="hba1c" type="number" step="0.1" inputmode="decimal" placeholder="5.8"></div>
+      <div class="field"><label for="hb">Hb <span class="unit">g/dL</span></label><input id="hb" type="number" step="0.1" inputmode="decimal" placeholder="14.2"></div>
+    </div>
+    <p class="sub-label">アルドステロン・レニン</p>
+    <div class="fields">
+      <div class="field"><label for="pac">血漿アルドステロン濃度（PAC） <span class="unit">pg/mL・CLEIA</span></label><input id="pac" type="number" step="0.1" inputmode="decimal" placeholder="180"></div>
+      <div class="field"><label for="renType">レニンの測定法</label><select id="renType"><option value="pra">血漿レニン活性（PRA）ng/mL/時</option><option value="arc">活性型レニン濃度（ARC）pg/mL</option></select></div>
+      <div class="field"><label for="ren" id="renLabel">血漿レニン活性（PRA） <span class="unit">ng/mL/時</span></label><input id="ren" type="number" step="0.1" inputmode="decimal" placeholder="0.4"></div>
+      <div class="field"><label for="arrOut">アルドステロン／レニン比（ARR）</label><input id="arrOut" type="number" readonly placeholder="自動計算"></div>
+    </div>
+    <p class="sub-label">内分泌・その他（任意）</p>
+    <div class="fields">
+      <div class="field"><label for="mn">血漿遊離メタネフリン <span class="unit">pg/mL</span></label><input id="mn" type="number" inputmode="decimal" placeholder="60"></div>
+      <div class="field"><label for="nmn">血漿遊離ノルメタネフリン <span class="unit">pg/mL</span></label><input id="nmn" type="number" inputmode="decimal" placeholder="200"></div>
+      <div class="field"><label for="dst">1 mg DST 翌朝コルチゾール <span class="unit">µg/dL</span></label><input id="dst" type="number" step="0.1" inputmode="decimal" placeholder="1.2"></div>
+      <div class="field"><label for="acth">ACTH <span class="unit">pg/mL</span></label><input id="acth" type="number" step="0.1" inputmode="decimal" placeholder="25"></div>
+      <div class="field"><label for="tsh">TSH <span class="unit">µIU/mL</span></label><input id="tsh" type="number" step="0.01" inputmode="decimal" placeholder="1.8"></div>
+      <div class="field"><label for="ft4">FT4 <span class="unit">ng/dL</span></label><input id="ft4" type="number" step="0.01" inputmode="decimal" placeholder="1.2"></div>
+      <div class="field"><label for="pth">intact PTH <span class="unit">pg/mL</span></label><input id="pth" type="number" inputmode="decimal" placeholder="45"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><span class="stepno">STEP 4</span><h2>随時尿</h2></div>
+    <div class="fields">
+      <div class="field"><label for="upcr">尿蛋白／Cr 比 <span class="unit">g/gCr</span></label><input id="upcr" type="number" step="0.01" inputmode="decimal" placeholder="0.08"></div>
+      <div class="field"><label for="uob">尿潜血</label><select id="uob"><option value="">—</option><option value="0">陰性</option><option value="1">陽性</option></select></div>
+      <div class="field"><label for="una">尿 Na <span class="unit">mEq/L</span></label><input id="una" type="number" inputmode="decimal" placeholder="120"></div>
+      <div class="field"><label for="uk">尿 K <span class="unit">mEq/L</span></label><input id="uk" type="number" inputmode="decimal" placeholder="45"></div>
+      <div class="field"><label for="ucr">尿 Cr <span class="unit">mg/dL</span></label><input id="ucr" type="number" inputmode="decimal" placeholder="110"></div>
+      <div class="field"><label for="height">身長 <span class="unit">cm（塩分推定用）</span></label><input id="height" type="number" inputmode="decimal" placeholder="165"></div>
+      <div class="field"><label for="weight">体重 <span class="unit">kg</span></label><input id="weight" type="number" inputmode="decimal" placeholder="75"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><span class="stepno">STEP 5</span><h2>採血時の降圧薬（ARR の解釈用）</h2></div>
+    <div class="chips">
+      <label class="chip"><input type="checkbox" id="mra"><span class="box"></span>MR 拮抗薬<small>スピロノラクトン・エプレレノン・エサキセレノン</small></label>
+      <label class="chip"><input type="checkbox" id="rasi"><span class="box"></span>ARB／ACE 阻害薬</label>
+      <label class="chip"><input type="checkbox" id="diur"><span class="box"></span>利尿薬</label>
+      <label class="chip"><input type="checkbox" id="bb"><span class="box"></span>β遮断薬</label>
+      <label class="chip"><input type="checkbox" id="ccb"><span class="box"></span>Ca 拮抗薬／α遮断薬のみ</label>
+    </div>
+  </section>
+
+  <section class="panel"><details><summary>判定基準と注意</summary>
+    <div class="note" style="margin-top:8px;line-height:1.6">
+      <p>・原発性アルドステロン症：ARR（PRA 使用）≥200 かつ PAC ≥60 で陽性、100〜200 で境界。ARC 使用時は PAC/ARC ≥40 で陽性、20〜40 で境界。MR 拮抗薬・利尿薬・RAS 阻害薬はレニンを上げて偽陰性、β遮断薬はレニンを下げて偽陽性に働く。</p>
+      <p>・褐色細胞腫：血漿遊離メタネフリン ≥130 または ノルメタネフリン ≥506 pg/mL で陽性、上限の 3 倍以上で強く疑う（検査会社の基準値を優先）。</p>
+      <p>・クッシング：1 mg デキサメタゾン抑制試験の翌朝コルチゾール ≥5 µg/dL で抑制不良（1.8〜5 はグレー）。ACTH <10 で副腎性、≥10 で ACTH 依存性を考える。</p>
+      <p>・腎実質性：eGFR <60、尿蛋白／Cr ≥0.15 g/gCr、尿潜血陽性。</p>
+      <p>・睡眠時無呼吸：STOP-Bang 相当の項目（いびき・眠気・無呼吸・高血圧・BMI ≥35・年齢 >50・頸囲 ≥40 cm・男性）3 点以上で中等度、5 点以上で高リスク。</p>
+      <p>・推定塩分摂取量：田中式（随時尿 Na・Cr、年齢・身長・体重）。6 g/日未満が目標。</p>
+      <p>本ツールはガイドラインの閾値による「疑いの強さ」の整理であり、確率を算出するものではありません。確定診断は機能確認試験・画像・専門科での評価によります。</p>
+    </div></details>
+  </section>
+</div>
+
+<aside class="rail">
+  <section class="panel">
+    <div class="panel-head" style="margin-bottom:8px"><h2>予測される原因（疑いの強い順）</h2><button type="button" id="btnCopy" class="primary" style="margin-left:auto;padding:5px 11px;font-size:13px">結果をコピー</button></div>
+    <div class="cards" id="cards"></div>
+  </section>
+  <section class="panel">
+    <h2>計算値</h2>
+    <dl class="kv" id="calc" style="margin-top:8px"></dl>
+  </section>
+  <section class="panel"><details id="repD"><summary>コピー用テキスト</summary><textarea id="rep" rows="12" readonly aria-label="コピー用テキスト"></textarea></details></section>
+</aside>
+</div>
+</div>
+
+<div class="view" id="viewTx" hidden>
+<div class="tx">
+  <section class="panel">
+    <h2>降圧薬の分類（JSH2025）</h2>
+    <p class="sub" style="margin:4px 0 10px">G1a と G1b の間に優先順位はなく、積極的適応で選ぶ。目標は診察室 130/80 未満・家庭 125/75 未満（年齢によらず原則）。</p>
+    <div class="grp">
+      <div class="gcard g1"><div class="gk">G1a ／ 第一選択</div><div class="gn">Ca 拮抗薬・ARB・ACE 阻害薬</div><p>長時間作用型ジヒドロピリジン系 Ca 拮抗薬、ARB、ACE 阻害薬。忍容性が高く初回から選べる。</p></div>
+      <div class="gcard g1"><div class="gk">G1b ／ 第一選択</div><div class="gn">少量サイアザイド・β遮断薬</div><p>G1a に劣らない。2025 年版で第一選択に格上げ。β遮断薬はビソプロロール・カルベジロールなど。</p></div>
+      <div class="gcard g2"><div class="gk">G2 ／ STEP2〜3 で病態により</div><div class="gn">ARNI・MR 拮抗薬</div><p>降圧効果は確実。心不全・CKD・原発性アルドステロン症・治療抵抗性で追加。</p></div>
+      <div class="gcard g3"><div class="gk">G3 ／ 特殊な状況のみ</div><div class="gn">α遮断薬・ヒドララジン・中枢性</div><p>起立性低血圧などの副作用が多く、治療抵抗性や妊娠・褐色細胞腫など限定的に。</p></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>使用の順番</h2>
+    <div class="steps" style="margin-top:10px">
+      <div class="stepbox"><div class="st">STEP 1</div><div class="sn">G1 の単剤</div>
+        <ul><li>低〜中等度リスクの I 度高血圧はここから（生活習慣改善 3〜6 か月後に薬物療法でも可）</li><li>75 歳以上、eGFR &lt;30 は常用量の半量から</li><li>単剤で粘らない。増量（＋20% 程度）より併用（約 1.6 倍）のほうが降圧効果が大きく副作用が少ない</li></ul></div>
+      <div class="arrow"><span>効果不十分 ／ 高リスク I 度・II 度（≥160/100）・III 度は初めからここ</span></div>
+      <div class="stepbox"><div class="st">STEP 2</div><div class="sn">G1 の 2 剤併用（病態により G2）</div>
+        <div style="margin:4px 0 6px"><span class="combo">RAS 阻害薬＋Ca 拮抗薬</span><span class="combo">Ca 拮抗薬＋サイアザイド</span><span class="combo">RAS 阻害薬＋サイアザイド</span><span class="combo ng">ACE 阻害薬＋ARB は非推奨</span></div>
+        <ul><li>RAS 阻害薬＋Ca 拮抗薬が最も推奨</li><li>Ca 拮抗薬＋サイアザイドは高齢者、RAS 阻害薬＋サイアザイドは 80 歳以上・脳卒中既往に有用</li><li>配合剤で錠剤数を増やさない（初回治療の配合剤は保険適用外）</li></ul></div>
+      <div class="arrow"><span>効果不十分</span></div>
+      <div class="stepbox"><div class="st">STEP 3</div><div class="sn">3 剤併用</div>
+        <div style="margin:4px 0 6px"><span class="combo">Ca 拮抗薬＋RAS 阻害薬＋サイアザイド</span></div>
+        <ul><li>原則サイアザイドを含める。eGFR &lt;30 ではループ利尿薬</li><li>心不全・CKD・原発性アルドステロン症では ARNI や MR 拮抗薬を病態に応じて</li></ul></div>
+      <div class="arrow"><span>3 剤（利尿薬を含む）で 130/80 未達</span></div>
+      <div class="stepbox r"><div class="st">治療抵抗性高血圧</div><div class="sn">見直し → 第 4 剤</div>
+        <ul><li>まず確認：減塩（6 g 未満）、服薬アドヒアランス、NSAIDs・甘草などの併用薬、<b>二次性高血圧の除外</b>（原因予測タブ）</li><li>第 4 剤は <b>MR 拮抗薬</b>（スピロノラクトン 25〜50 mg、エサキセレノン）が最有力。β遮断薬・ドキサゾシンより降圧効果が大きい（PATHWAY-2）</li><li>次に β遮断薬（頻脈傾向）、G3（α遮断薬、ヒドララジン、中枢性）</li><li>専門医紹介を考慮</li></ul></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>積極的適応（病態による第一選択）</h2>
+    <div class="tbl-wrap" style="margin-top:8px"><table class="tx-t">
+      <tr><th>病態</th><th>推奨薬</th><th>備考</th></tr>
+      <tr><td>糖尿病、蛋白尿陽性 CKD</td><td>ARB／ACE 阻害薬</td><td>利尿薬・β遮断薬は耐糖能に注意</td></tr>
+      <tr><td>心不全（HFrEF）</td><td>ARB／ACE 阻害薬、ARNI、β遮断薬、MR 拮抗薬</td><td>SGLT2 阻害薬と併せて</td></tr>
+      <tr><td>冠動脈疾患</td><td>β遮断薬、ARB／ACE 阻害薬、長時間作用型 Ca 拮抗薬</td><td>心筋梗塞後はβ遮断薬</td></tr>
+      <tr><td>脳血管障害</td><td>Ca 拮抗薬、ARB／ACE 阻害薬、サイアザイド</td><td>急性期は別</td></tr>
+      <tr><td>頻脈</td><td>β遮断薬</td><td></td></tr>
+      <tr><td>高齢者</td><td>Ca 拮抗薬、サイアザイド（体液貯留）</td><td>半量から開始</td></tr>
+      <tr><td>原発性アルドステロン症</td><td>MR 拮抗薬</td><td>片側性で手術希望なら副腎摘除</td></tr>
+      <tr><td>褐色細胞腫</td><td>α遮断薬を 2 週間以上先行 → β遮断薬</td><td>β遮断薬単独は禁忌</td></tr>
+      <tr><td>腎血管性（両側性・単腎）</td><td>Ca 拮抗薬</td><td>RAS 阻害薬は原則禁忌。片側性なら慎重に使用可</td></tr>
+      <tr><td>妊娠・妊娠可能性</td><td>Ca 拮抗薬、メチルドパ、ヒドララジン</td><td><b>RAS 阻害薬・ARNI は禁忌</b></td></tr>
+    </table></div>
+  </section>
+
+  <section class="panel">
+    <h2>禁忌・注意</h2>
+    <div class="tbl-wrap" style="margin-top:8px"><table class="tx-t">
+      <tr><th>薬剤</th><th>禁忌</th><th>注意</th></tr>
+      <tr><td>ARB／ACE 阻害薬</td><td>妊娠、両側腎動脈狭窄、ACE 阻害薬は血管浮腫既往</td><td>高 K 血症、Cr 上昇（開始後 30% 超なら腎動脈狭窄を疑う）</td></tr>
+      <tr><td>サイアザイド</td><td>低 Na・低 K 血症</td><td>痛風、耐糖能異常、eGFR &lt;30 では無効</td></tr>
+      <tr><td>β遮断薬</td><td>喘息（非選択性）、高度徐脈・房室ブロック、未治療の褐色細胞腫</td><td>急な中止でリバウンド。COPD はβ1 選択性でも注意</td></tr>
+      <tr><td>非ジヒドロピリジン系 Ca 拮抗薬</td><td>うっ血性心不全、II 度以上の房室ブロック、洞不全</td><td>β遮断薬との併用で徐脈</td></tr>
+      <tr><td>MR 拮抗薬</td><td>高 K 血症。エプレレノンはアルブミン尿糖尿病・eGFR 30〜60</td><td>K・Cr を 1〜2 週後に確認。スピロノラクトンは女性化乳房</td></tr>
+      <tr><td>ARNI</td><td>妊娠、ACE 阻害薬との併用（切替は 36 時間以上あける）</td><td>血管浮腫</td></tr>
+      <tr><td>併用の禁忌</td><td colspan="2">RAS 阻害薬＋利尿薬＋NSAIDs の 3 剤併用は急性腎障害のリスク（triple whammy）</td></tr>
+    </table></div>
+    <p class="note" style="margin-top:8px">出典：日本高血圧学会 高血圧管理・治療ガイドライン 2025（第 8 章）、日本内分泌学会 原発性アルドステロン症診療ガイドライン 2021。</p>
+  </section>
+</div>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const num=v=>{const n=parseFloat(v);return Number.isFinite(n)?n:null};
+const chk=id=>$(id).checked;
+const f=(v,d=1)=>v==null?'—':v.toFixed(d);
+let sex=null;
+$('sexF').onclick=()=>{sex='f';calc()};$('sexM').onclick=()=>{sex='m';calc()};
+$('renType').addEventListener('change',()=>{$('renLabel').innerHTML=$('renType').value==='pra'?'血漿レニン活性（PRA） <span class="unit">ng/mL/時</span>':'活性型レニン濃度（ARC） <span class="unit">pg/mL</span>';$('ren').placeholder=$('renType').value==='pra'?'0.4':'3.0'});
+
+function calc(){
+  $('sexF').setAttribute('aria-pressed',sex==='f');$('sexM').setAttribute('aria-pressed',sex==='m');
+  const age=num($('age').value),sbp=num($('sbp').value),dbp=num($('dbp').value),ndrug=num($('ndrug').value),bmi=num($('bmi').value),onset=num($('onset').value);
+  const k=num($('k').value),egfr=num($('egfr').value),ca=num($('ca').value),glu=num($('glu').value),a1c=num($('hba1c').value),hb=num($('hb').value);
+  const pac=num($('pac').value),ren=num($('ren').value),isPRA=$('renType').value==='pra';
+  const mn=num($('mn').value),nmn=num($('nmn').value),dst=num($('dst').value),acth=num($('acth').value),tsh=num($('tsh').value),ft4=num($('ft4').value),pth=num($('pth').value);
+  const upcr=num($('upcr').value),uob=$('uob').value,una=num($('una').value),uk=num($('uk').value),ucr=num($('ucr').value),ht=num($('height').value),wt=num($('weight').value);
+  const diurOn=chk('diur'), mra=chk('mra'), rasi=chk('rasi'), bb=chk('bb');
+
+  // ---- derived ----
+  const arr=(pac!=null&&ren!=null&&ren>0)?pac/ren:null;
+  $('arrOut').value=arr!=null?arr.toFixed(0):'';
+  const lowK=k!=null&&(diurOn?k<3.0:k<3.5);
+  const severe=(sbp!=null&&sbp>=180)||(dbp!=null&&dbp>=110);
+  const resist=chk('resist')||(ndrug!=null&&ndrug>=3&&sbp!=null&&sbp>=140);
+  const young=(onset!=null&&onset<40)||(onset==null&&age!=null&&age<40);
+  let salt=null; if(una!=null&&ucr!=null&&age!=null&&ht!=null&&wt!=null){const prcr=-2.04*age+14.89*wt+16.14*ht-2244.45; if(prcr>0){const na24=21.98*Math.pow(una/(ucr*10)*prcr,0.392); salt=na24/17}}
+  const ukcr=(uk!=null&&ucr!=null&&ucr>0)?uk/(ucr/100):null; // mEq/gCr approx
+  // STOP-Bang-like
+  const sb=[chk('snore'),chk('sleepy'),chk('snore')&&chk('night'),true,bmi!=null&&bmi>=35,age!=null&&age>50,chk('neck'),sex==='m'].filter(Boolean).length;
+
+  // ---- causes ----
+  const C=[];
+  const add=(name,level,reasons,next)=>C.push({name,level,reasons,next});
+  const L={hi:3,md:2,lo:1,na:0};
+
+  // PA
+  {
+    let lv='na',r=[],nx='';
+    const drugNote=[];
+    if(mra)drugNote.push('MR 拮抗薬内服中（レニン↑で偽陰性）');if(rasi)drugNote.push('ARB/ACE 内服中（偽陰性方向）');if(diurOn)drugNote.push('利尿薬内服中（偽陰性方向）');if(bb)drugNote.push('β遮断薬内服中（偽陽性方向）');
+    if(arr!=null&&pac!=null){
+      const pos=isPRA?(arr>=200&&pac>=60):(arr>=40);
+      const border=isPRA?(arr>=100&&arr<200&&pac>=60):(arr>=20&&arr<40&&pac>=60);
+      if(pos){lv='hi';r.push(`ARR ${arr.toFixed(0)}${isPRA?'（≥200）':'（PAC/ARC ≥40）'}、PAC ${f(pac,0)}：スクリーニング陽性`);nx='低 K 補正・薬剤調整のうえ機能確認試験（カプトプリル／生食／フロセミド立位）。手術希望なら副腎 CT → AVS';
+        if(pac>=1000&&lowK)r.push('PAC ≥1,000 かつ低 K：機能確認試験の省略を考慮')}
+      else if(border){lv='md';r.push(`ARR ${arr.toFixed(0)}：境界域`);nx='Ca 拮抗薬／α遮断薬へ変更し 2〜4 週後、早朝安静条件で再検';}
+      else {lv='lo';r.push(`ARR ${arr.toFixed(0)}：陰性`);
+        if(mra||rasi||diurOn){lv='md';r.push('ただしレニンを上げる薬剤の内服下で、偽陰性の可能性');nx='薬剤調整後に再検'} else nx='現時点で PA は否定的。低 K・治療抵抗性が続けば再検';}
+      if(bb&&pos)r.push('β遮断薬内服中のため偽陽性の可能性あり、機能確認試験で確認');
+    } else {
+      if(lowK){lv='md';r.push('低 K 血症（PA の約半数は K 正常なので、正常でも否定できない）')}
+      if(chk('incid')){lv='md';r.push('副腎偶発腫瘍')}
+      if(resist){lv=lv==='md'?'md':'lo';r.push('治療抵抗性')}
+      nx='血漿アルドステロン濃度（PAC）と血漿レニン活性（PRA）または活性型レニン濃度（ARC）を測定（随時・座位で可）';
+      if(lv==='na'&&(pac!=null||ren!=null))lv='na';
+    }
+    if(lowK&&arr!=null)r.push(`K ${f(k)}：低 K 血症`);
+    if(ukcr!=null&&lowK&&ukcr>20)r.push('低 K なのに尿 K 排泄が多い（腎性 K 喪失）');
+    r.push(...drugNote);
+    add('原発性アルドステロン症',lv,r,nx);
+  }
+  // Pheo
+  {
+    let lv='na',r=[],nx='';
+    const sym=[chk('parox')?'発作性高血圧':null,chk('triad')?'頭痛・動悸・発汗':null,chk('incid')?'副腎偶発腫瘍':null,chk('famendo')?'MEN2/VHL 家族歴':null,(glu!=null&&glu>=126)||(a1c!=null&&a1c>=6.5)?'高血糖':null].filter(Boolean);
+    if(mn!=null||nmn!=null){
+      const m=mn!=null?mn/130:0,n=nmn!=null?nmn/506:0,mx=Math.max(m,n);
+      if(mx>=3){lv='hi';r.push(`メタネフリン分画が基準上限の ${mx.toFixed(1)} 倍：強く疑う`);nx='CT／MRI で局在診断 → MIBG シンチ。α遮断薬で前処置'}
+      else if(mx>=1){lv='md';r.push(`メタネフリン分画が基準上限の ${mx.toFixed(1)} 倍：軽度上昇`);nx='30 分臥位での再検（座位・ストレス・薬剤で偽陽性あり）。持続すればクロニジン試験／画像'}
+      else {lv='lo';r.push('メタネフリン分画 正常：褐色細胞腫はほぼ否定的');nx='症状が続くなら発作時に再検'}
+    } else {
+      if(sym.length>=2){lv='md'} else if(sym.length===1){lv='lo'}
+      nx='血漿遊離メタネフリン分画（随時可、理想は 30 分臥位）または随時尿メタネフリン分画／Cr';
+    }
+    r.push(...sym);
+    add('褐色細胞腫・パラガングリオーマ',lv,r,nx);
+  }
+  // Cushing
+  {
+    let lv='na',r=[],nx='';
+    if(dst!=null){
+      if(dst>=5){lv='hi';r.push(`1 mg DST 後コルチゾール ${f(dst)} µg/dL：抑制不良`);nx=acth!=null?(acth<10?'ACTH 低値 → 副腎性。副腎 CT':'ACTH 依存性 → 下垂体 MRI、CRH 試験、内分泌内科へ'):'ACTH 測定で副腎性／下垂体性を鑑別'}
+      else if(dst>=1.8){lv='md';r.push(`DST 後コルチゾール ${f(dst)}：グレーゾーン（サブクリニカルの可能性）`);nx='深夜唾液コルチゾール・24 時間尿中遊離コルチゾールを追加'}
+      else {lv='lo';r.push(`DST 後コルチゾール ${f(dst)}：正常抑制`);nx='クッシングは否定的'}
+    } else {
+      const s=[chk('cushing')?'クッシング様体型':null,chk('incid')?'副腎偶発腫瘍':null,lowK?'低 K':null,(glu!=null&&glu>=126)||(a1c!=null&&a1c>=6.5)?'高血糖':null].filter(Boolean);
+      if(chk('cushing')||chk('incid'))lv='md'; else if(s.length>=2)lv='lo';
+      r.push(...s); nx='1 mg デキサメタゾン抑制試験（前夜 23 時内服 → 翌朝採血）';
+    }
+    add('クッシング症候群',lv,r,nx);
+  }
+  // Renovascular
+  {
+    let lv='na',r=[],nx='腎動脈エコー（PSV ≥180〜200 cm/s、RAR ≥3.5）→ 疑いあれば CTA／MRA';
+    const s=[chk('rascr')?'RAS 阻害薬で Cr 急上昇':null,chk('bruit')?'腹部血管雑音':null,chk('kidneyasym')?'腎サイズ左右差':null,chk('edema')?'flash 肺水腫':null,chk('athero')?'全身の動脈硬化':null,(young&&sex==='f')?'若年女性（線維筋性異形成）':null,(ren!=null&&(isPRA?ren>=3:ren>=25))?'レニン高値':null,resist?'治療抵抗性':null,(egfr!=null&&egfr<60)?'eGFR 低下':null].filter(Boolean);
+    const strong=[chk('rascr'),chk('bruit'),chk('kidneyasym'),chk('edema')].filter(Boolean).length;
+    if(strong>=1)lv='hi'; else if(s.length>=2)lv='md'; else if(s.length===1)lv='lo';
+    r.push(...s);
+    add('腎血管性高血圧',lv,r,nx);
+  }
+  // Renal parenchymal
+  {
+    let lv='na',r=[],nx='';
+    const s=[(egfr!=null&&egfr<60)?`eGFR ${f(egfr,0)}`:null,(upcr!=null&&upcr>=0.15)?`尿蛋白／Cr ${f(upcr,2)} g/gCr`:null,uob==='1'?'尿潜血陽性':null,chk('kidneydz')?'腎疾患の既往／家族歴':null,chk('dm')?'糖尿病':null].filter(Boolean);
+    const core=[(egfr!=null&&egfr<60),(upcr!=null&&upcr>=0.15),uob==='1'].filter(Boolean).length;
+    if(core>=2)lv='hi'; else if(core===1)lv='md'; else if(s.length>=1)lv='lo';
+    if(egfr!=null&&upcr!=null&&uob!=='')lv=lv==='na'?'lo':lv;
+    if(lv==='lo'&&core===0&&egfr!=null&&upcr!=null)r.push('eGFR・尿蛋白・潜血に異常なし');
+    r.push(...s); nx=core>=1?'腎エコー、尿沈渣、腎炎マーカー。腎臓内科へ':'eGFR・尿蛋白／Cr・尿沈渣で評価';
+    add('腎実質性高血圧',lv,r,nx);
+  }
+  // SAS
+  {
+    let lv='na',r=[],nx='';
+    const s=[chk('snore')?'いびき':null,chk('sleepy')?'日中の眠気':null,chk('night')?'夜間・早朝高血圧':null,(bmi!=null&&bmi>=30)?`BMI ${f(bmi)}`:null,chk('neck')?'頸囲 ≥40 cm':null,resist?'治療抵抗性':null,(hb!=null&&hb>=17)?'多血傾向':null].filter(Boolean);
+    if(sb>=5||(chk('snore')&&chk('sleepy')))lv='hi'; else if(sb>=3||chk('snore')||chk('night'))lv='md'; else if(s.length>=1)lv='lo';
+    r.push(`STOP-Bang 相当 ${sb} 点`,...s); nx=lv==='hi'||lv==='md'?'在宅簡易検査（AHI ≥5）→ PSG':'いびき・眠気を問診';
+    add('睡眠時無呼吸症候群',lv,r,nx);
+  }
+  // Thyroid
+  {
+    let lv='na',r=[],nx='';
+    if(tsh!=null){
+      if(tsh<0.1||(ft4!=null&&ft4>1.8)){lv='hi';r.push(`TSH ${f(tsh,2)}${ft4!=null?'、FT4 '+f(ft4,2):''}：甲状腺機能亢進`);nx='TRAb、甲状腺エコー'}
+      else if(tsh>10||(ft4!=null&&ft4<0.8)){lv='hi';r.push(`TSH ${f(tsh,2)}：甲状腺機能低下`);nx='抗 TPO 抗体、補充療法'}
+      else if(tsh<0.4||tsh>4.5){lv='md';r.push(`TSH ${f(tsh,2)}：軽度異常`);nx='FT4・再検'}
+      else {lv='lo';r.push('TSH 正常');nx='—'}
+    } else nx='TSH・FT4 を追加';
+    add('甲状腺機能異常',lv,r,nx);
+  }
+  // Hyperparathyroid
+  {
+    let lv='na',r=[],nx='';
+    if(ca!=null){
+      if(ca>10.4){lv=pth!=null&&pth>65?'hi':'md';r.push(`補正 Ca ${f(ca)}：高 Ca 血症${pth!=null?'、intact PTH '+f(pth,0):''}`);nx=pth!=null?(pth>65?'原発性副甲状腺機能亢進症。頸部エコー・MIBI':'PTH 抑制あり。悪性腫瘍・ビタミン D などを検索'):'intact PTH を追加'}
+      else {lv='lo';r.push('Ca 正常');nx='—'}
+    } else nx='Ca・P を確認';
+    add('副甲状腺機能亢進症',lv,r,nx);
+  }
+  // Drug-induced
+  {
+    let lv=chk('drugs')?'md':'na';
+    add('薬剤・サプリ誘発性',lv,chk('drugs')?['血圧を上げる薬剤・サプリを使用中']:[],chk('drugs')?'中止・変更して 2〜4 週後に再評価。甘草なら低 K・レニン低値・アルドステロン低値のパターン':'問診で確認');
+  }
+  // Coarctation
+  {
+    let lv=chk('limbdiff')?'hi':(young?'lo':'na');
+    add('大動脈縮窄症',lv,chk('limbdiff')?['上下肢血圧差・大腿動脈拍動減弱']:(young?['若年発症（診察で四肢血圧・大腿動脈を確認）']:[]),chk('limbdiff')?'心エコー、CT／MRA':'四肢血圧を測定');
+  }
+
+  // ---- render ----
+  const order=['hi','md','lo','na'];
+  C.sort((a,b)=>L[b.level]-L[a.level]);
+  const anyInput=sex!=null||[...document.querySelectorAll('input[type=number]')].some(i=>i.value!=='')||$('uob').value!==''||document.querySelectorAll('input[type=checkbox]:checked').length>0;
+  const lbl={hi:'強く疑う',md:'疑い',lo:'否定的／低い',na:'未評価'};
+  $('cards').innerHTML=anyInput?C.map(c=>`<div class="card ${c.level}"><div class="top"><span class="name">${c.name}</span><span class="pill ${c.level}">${lbl[c.level]}</span></div>${c.reasons.length?`<ul>${c.reasons.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}${c.next&&c.next!=='—'?`<div class="next"><b>次の一手：</b>${c.next}</div>`:''}</div>`).join(''):'<p class="sub">所見や検査値を入力すると、原因ごとの疑いの強さを表示します。</p>';
+
+  // calc panel
+  const kv=[];const row=(k2,v)=>kv.push(`<dt>${k2}</dt><dd>${v}</dd>`);
+  row('ARR（'+(isPRA?'PAC/PRA':'PAC/ARC')+'）',arr!=null?arr.toFixed(0):'—');
+  row('低 K 血症',k!=null?(lowK?'あり':'なし'):'—');
+  row('重症高血圧（≥180/110）',sbp!=null||dbp!=null?(severe?'あり':'なし'):'—');
+  row('治療抵抗性',resist?'あり':'—');
+  row('STOP-Bang 相当',sb+' 点');
+  row('推定塩分摂取量',salt!=null?salt.toFixed(1)+' g/日':'—');
+  row('尿 K／Cr',ukcr!=null?ukcr.toFixed(0)+' mEq/gCr':'—');
+  $('calc').innerHTML=kv.join('');
+
+  // report
+  const d=new Date(),ymd=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const flags=[...document.querySelectorAll('input[type=checkbox]:checked')].map(i=>i.parentElement.textContent.trim().replace(/\s+/g,' ')).join('、')||'なし';
+  $('rep').value=[
+    `【二次性高血圧スクリーニング】${ymd}`,
+    `${age!=null?age+'歳 ':''}${sex?(sex==='m'?'男性':'女性'):''}／BP ${sbp??'—'}/${dbp??'—'}／降圧薬 ${ndrug??'—'} 剤／BMI ${bmi??'—'}`,
+    `所見：${flags}`,
+    `採血：K ${k??'—'}、eGFR ${egfr??'—'}、Ca ${ca??'—'}、PAC ${pac??'—'} pg/mL、${isPRA?'PRA':'ARC'} ${ren??'—'}、ARR ${arr!=null?arr.toFixed(0):'—'}${mn!=null||nmn!=null?`、MN ${mn??'—'}／NMN ${nmn??'—'}`:''}${dst!=null?`、DST 後コルチゾール ${dst}`:''}${tsh!=null?`、TSH ${tsh}`:''}`,
+    `尿：蛋白/Cr ${upcr??'—'}、潜血 ${uob===''?'—':(uob==='1'?'陽性':'陰性')}、推定塩分 ${salt!=null?salt.toFixed(1)+' g/日':'—'}`,
+    `判定：`+C.filter(c=>c.level!=='na').map(c=>`${c.name}＝${lbl[c.level]}`).join('、'),
+    `次の検査：`+C.filter(c=>c.level==='hi'||c.level==='md').map(c=>`${c.name}→${c.next}`).join('；')
+  ].join('\n');
+}
+document.querySelectorAll('input,select').forEach(el=>{el.addEventListener('input',calc);el.addEventListener('change',calc)});
+$('btnClear').onclick=()=>{document.querySelectorAll('input[type=number]').forEach(i=>i.value='');document.querySelectorAll('input[type=checkbox]').forEach(i=>i.checked=false);$('uob').value='';sex=null;calc()};
+$('btnCopy').onclick=async()=>{const b=$('btnCopy'),t=$('rep').value;try{await navigator.clipboard.writeText(t);b.textContent='コピーしました';setTimeout(()=>b.textContent='結果をコピー',1800)}catch(e){$('repD').open=true;$('rep').focus();$('rep').select();b.textContent='下のテキストを選択しました';setTimeout(()=>b.textContent='結果をコピー',2500)}};
+calc();
+const tabs=[['tabNavi','viewNavi'],['tabTx','viewTx']];
+function showTab(id){tabs.forEach(([t,v])=>{$(t).setAttribute('aria-selected',t===id);$(v).hidden=(t!==id)});try{localStorage.setItem('htnTab',id)}catch(e){}}
+tabs.forEach(([t])=>$(t).onclick=()=>showTab(t));
+try{const saved=localStorage.getItem('htnTab');if(saved&&tabs.some(([t])=>t===saved))showTab(saved)}catch(e){}
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {})); }
+</script>
+</body>
+</html>
